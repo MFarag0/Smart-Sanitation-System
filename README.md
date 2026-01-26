@@ -2,6 +2,7 @@
 Team MindForge - Hackathon '26
 
 Problem Statement: HPS#1 - Mapping Sanitation and Hygiene Services in Displaced Communities
+
 Solution: WASH-Command Snap-Kit
 
 WASH-Command Snap-Kit is an offline-first system that turns sanitation signals into a prioritized workflow. Instead of only displaying readings, it ranks urgency and supports task assignment across facilities.
