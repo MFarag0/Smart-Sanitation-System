@@ -21,8 +21,6 @@
 
 const char charset[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 std::map<std::string, int> resources;
-const char* SSID = "FacilityA";
-const char* SSID = "12345678";
 long t;
 float distance;
 float average;
@@ -35,6 +33,12 @@ unsigned long IRHighStart = 0;
 unsigned long IRDebounceTime = 200;
 int currentIRState;
 unsigned long now;
+uint64_t chipid;
+
+const char* SSID = "FacilityA";
+const char* PASS = "12345678";
+
+WebServer server(80);
 
 void setup() 
   {
@@ -49,9 +53,15 @@ void setup()
         Serial.println("LoRa failed to start!");
         while (1);
     }
+    WiFi.mode(WIFI_AP);
+    WiFi.softAP(ssid, password);
+    server.on("/sensorsdata", HTTP_POST, handleToApp); //From esp to app
+    server.begin();
+    
 
     }
 void loop() {   
+    server.handleClient();
     now = millis();
     average = 0;
     currentIRState = digitalRead(IRSENSOR);
@@ -117,5 +127,9 @@ void sendToESP32() {
       LoRa.endPacket();
       delay(10);
     
+}
+void handleToApp(){
+  msg = "Water"+"|"+resources["Water"]+"|"+"Population"+"|"+resources["Population"];
+  server.send(200, "text/plain", receivedPacket);
 }
 
