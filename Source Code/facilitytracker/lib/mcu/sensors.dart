@@ -1,9 +1,82 @@
+import 'dart:async';
 import 'package:facilitytracker/widgets/sidebar.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
 
-class SensorsDataScreen extends StatelessWidget {
+class SensorsDataScreen extends StatefulWidget {
   const SensorsDataScreen({super.key});
+
+  @override
+  State<SensorsDataScreen> createState() => _SensorsDataScreenState();
+}
+
+class _SensorsDataScreenState extends State<SensorsDataScreen> {
+  Timer? timer;
+  Map<String, bool> sensorStatus = {
+    'Population': false,
+    'Water': false,
+    'Soap': false,
+    'RR1': false,
+    'RR2': false,
+    'RR3': false,
+    'RR4': false,
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    timer = Timer.periodic(const Duration(seconds: 2), (_) => fetchSensorData());
+    fetchSensorData();
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> fetchSensorData() async {
+    try {
+      final response = await http
+          .get(Uri.parse("http://192.168.4.1/sensorsdata"))
+          .timeout(const Duration(seconds: 3));
+
+      if (response.statusCode != 200) return;
+
+      final msg = response.body.trim().replaceAll('\r', '');
+      final parts = msg.split('|');
+
+      if (parts.isEmpty || parts[0] != "FacilityA" || parts.length < 3) {
+        return;
+      }
+
+      // Parse key-value pairs and update sensor status
+      final Map<String, bool> newStatus = {
+        'Population': false,
+        'Water': false,
+        'Soap': false,
+        'RR1': false,
+        'RR2': false,
+        'RR3': false,
+        'RR4': false,
+      };
+
+      for (int i = 1; i + 1 < parts.length; i += 2) {
+        final key = parts[i].trim();
+        if (newStatus.containsKey(key)) {
+          newStatus[key] = true; 
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        sensorStatus = newStatus;
+      });
+    } catch (e) {
+      
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,33 +142,33 @@ class SensorsDataScreen extends StatelessWidget {
                             itemBuilder: (context, index) {
                               final items = [
                                 {
-                                  'title': 'Population Sensor',
+                                  'title': 'Traffic Sensor',
                                   'icon': Icons.people, 
-                                  'status': 'Active',
+                                  'statusKey': 'Population',
                                   'isMultiRoom': false,
                                 },
                                 {
                                   'title': 'Water Tank Sensor', 
                                   'icon': Icons.water_drop,
-                                  'status': 'Active',
+                                  'statusKey': 'Water',
                                   'isMultiRoom': false,
                                 },
                                 {
                                   'title': 'Soap Supply Sensor', 
                                   'icon': Icons.soap,
-                                  'status': 'Active',
+                                  'statusKey': 'Soap',
                                   'isMultiRoom': false,
                                 },
                                 {
                                   'title': 'Toilet Access Sensors', 
                                   'icon': Icons.wc,
-                                  'status': 'Active',
+                                  'statusKey': null,
                                   'isMultiRoom': true,
                                   'rooms': [
-                                    {'name': 'Restroom 1', 'status': 'Active'},
-                                    {'name': 'Restroom 2', 'status': 'Active'},
-                                    {'name': 'Restroom 3', 'status': 'Inactive'},
-                                    {'name': 'Restroom 4', 'status': 'Active'},
+                                    {'name': 'Restroom 1', 'statusKey': 'RR1'},
+                                    {'name': 'Restroom 2', 'statusKey': 'RR2'},
+                                    {'name': 'Restroom 3', 'statusKey': 'RR3'},
+                                    {'name': 'Restroom 4', 'statusKey': 'RR4'},
                                   ],
                                 },
                                
@@ -104,8 +177,23 @@ class SensorsDataScreen extends StatelessWidget {
                               
                               var title = items[index]['title'] as String;
                               var icon = items[index]['icon'] as IconData;
-                              var status = items[index]['status'] as String;
+                              var statusKey = items[index]['statusKey'] as String?;
                               var isMultiRoom = items[index]['isMultiRoom'] as bool;
+                              
+                            
+                              var status = 'Inactive';
+                              if (statusKey != null && sensorStatus[statusKey] == true) {
+                                status = 'Active';
+                              } else if (isMultiRoom) {
+                                
+                                final rooms = items[index]['rooms'] as List<Map<String, String>>;
+                                for (var room in rooms) {
+                                  if (sensorStatus[room['statusKey']!] == true) {
+                                    status = 'Active';
+                                    break;
+                                  }
+                                }
+                              }
                               
                               final activeColor = Color.fromARGB(255, 16, 134, 185);
                               final inactiveColor = Color(0xFFEF4444);
@@ -180,7 +268,8 @@ class SensorsDataScreen extends StatelessWidget {
                                       SizedBox(height: 8),
                                       Column(
                                         children: (items[index]['rooms'] as List<Map<String, String>>).map((room) {
-                                          final roomStatus = room['status']!;
+                                          final roomStatusKey = room['statusKey']!;
+                                          final roomStatus = sensorStatus[roomStatusKey] == true ? 'Active' : 'Inactive';
                                           return Padding(
                                             padding: const EdgeInsets.symmetric(vertical: 4),
                                             child: Row(

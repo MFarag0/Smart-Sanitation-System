@@ -14,21 +14,24 @@ class FacilityDashScreen extends StatefulWidget {
 }
 
 class _FacilityDashScreenState extends State<FacilityDashScreen> {
-  // Parsed values
+  
   int waterLevel = 0;
-  int soapLevel = 0; // optional, in case later you add SOAP
+  int soapLevel = 0; 
+  int restroom1Level = 0;
   int populationLevel = 0;
 
   // Capacities
-  int maxPopulation = 200;
-  int soapCapacity = 200;
-  int waterCapacity = 200;
+  int maxPopulation = 200;  // Assuming max population 200
+  int soapCapacity = 200;   // Assuming max height of the soap bottle is 200units
+  int waterCapacity = 200;  // Assuming max height of the water tank is 200units
 
-  // UI / debug
-  String rawMessage = "Connecting to AP...";
+  
+  String rawMessage = "Connecting...";
   Timer? timer;
 
-  // Restroom UI (your existing UI kept)
+
+  int restroom1BaselineUsage = 0;
+  
   List<String> sanitationStatuses = [
     'Due for cleaning',
     'Clean',
@@ -39,9 +42,7 @@ class _FacilityDashScreenState extends State<FacilityDashScreen> {
   @override
   void initState() {
     super.initState();
-    // Don't block app launch if network is unavailable
-    Future.microtask(() => fetchData());
-    timer = Timer.periodic(const Duration(seconds: 6), (_) => fetchData());
+    timer = Timer.periodic(const Duration(seconds: 2), (_) => fetchData());
   }
 
   @override
@@ -50,33 +51,26 @@ class _FacilityDashScreenState extends State<FacilityDashScreen> {
     super.dispose();
   }
 
-  // Example incoming:
-  // FacilityA|Water|18|Population|1
-  // (key/value pairs after facility name)
+
   Future<void> fetchData() async {
     try {
       final response = await http
           .get(Uri.parse("http://192.168.4.1/sensorsdata"))
-          .timeout(const Duration(seconds: 20));
+          .timeout(const Duration(seconds: 3));
 
       if (response.statusCode != 200) return;
 
       final msg = response.body.trim().replaceAll('\r', '');
       final parts = msg.split('|');
 
-      // ignore: avoid_print
-      print('Parts: $parts (length=${parts.length})');
-
-      // Must be odd length: Facility + (Key,Value) pairs
+      
       if (parts.isEmpty || parts[0] != "FacilityA" || parts.length < 3) {
         if (!mounted) return;
         setState(() => rawMessage = "Invalid format of incoming data.");
-        // ignore: avoid_print
-        print('Invalid format or too short');
         return;
       }
 
-      // Parse key/value pairs
+      
       final Map<String, int> kv = {};
       for (int i = 1; i + 1 < parts.length; i += 2) {
         final key = parts[i].trim().toUpperCase();
@@ -84,8 +78,6 @@ class _FacilityDashScreenState extends State<FacilityDashScreen> {
         final value = int.tryParse(valueStr);
         if (value != null) {
           kv[key] = value;
-          // ignore: avoid_print
-          print('Parsed: $key = $value');
         }
       }
 
@@ -95,17 +87,22 @@ class _FacilityDashScreenState extends State<FacilityDashScreen> {
         waterLevel = kv["WATER"] ?? waterLevel;
         populationLevel = kv["POPULATION"] ?? populationLevel;
         soapLevel = kv["SOAP"] ?? soapLevel;
+        
+        int newRestroom1Level = kv["RR1"] ?? restroom1Level;
+        restroom1Level = newRestroom1Level;
+        
+        
+        if (restroom1Level - restroom1BaselineUsage >= 10) {
+          sanitationStatuses[0] = 'Due for cleaning';
+        }
       });
-      
-      // ignore: avoid_print
-      print('Updated state: water=$waterLevel, population=$populationLevel, soap=$soapLevel');
     } catch (e) {
       if (!mounted) return;
       setState(() => rawMessage = "Connection error");
     }
   }
 
-  // Helper to clamp ratio 0..1 safely
+  
   double _ratio(int value, int capacity) {
     if (capacity <= 0) return 0.0;
     final r = value / capacity;
@@ -121,14 +118,14 @@ class _FacilityDashScreenState extends State<FacilityDashScreen> {
     required Color warning,
     required Color low,
   }) {
-    // Population: low = good, high = warning/bad (crowding)
-    if (title == "Population") {
-      if (ratio >= 0.90) return low;
-      if (ratio >= 0.80) return warning;
+    
+    if (title == "Traffic") {
+      if (ratio >= 0.80) return low; 
+      if (ratio >= 0.40) return warning;
       return primary;
     }
 
-    // Supplies: low ratio = bad, high = good
+   
     if (ratio <= 0.20) return low;
     if (ratio <= 0.35) return warning;
     return primary;
@@ -147,7 +144,7 @@ class _FacilityDashScreenState extends State<FacilityDashScreen> {
 
     final items = [
       {
-        'title': 'Population',
+        'title': 'Traffic',
         'icon': Icons.group,
         'value': populationLevel,
         'capacity': maxPopulation,
@@ -218,7 +215,6 @@ class _FacilityDashScreenState extends State<FacilityDashScreen> {
                       ),
                     ),
 
-                    // Optional: show raw message to debug quickly
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 32.0),
                       child: Text(
@@ -283,7 +279,7 @@ class _FacilityDashScreenState extends State<FacilityDashScreen> {
                                       width: 80,
                                       height: 80,
                                       child: CircularProgressIndicator(
-                                        value: ratio, // ✅ MUST be 0..1
+                                        value: ratio,
                                         strokeWidth: 6,
                                         backgroundColor:
                                             primaryColor.withOpacity(0.1),
@@ -305,7 +301,13 @@ class _FacilityDashScreenState extends State<FacilityDashScreen> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '$percent%',
+                                  title == "Traffic"
+                                      ? (ratio >= 0.80
+                                          ? 'High'
+                                          : ratio >= 0.40
+                                              ? 'Medium'
+                                              : 'Low')
+                                      : '$percent%',
                                   style: GoogleFonts.poppins(
                                     fontSize: 20,
                                     fontWeight: FontWeight.bold,
@@ -315,9 +317,9 @@ class _FacilityDashScreenState extends State<FacilityDashScreen> {
                                 const SizedBox(height: 10),
 
                                 // Extra details
-                                if (title == "Population")
+                                if (title == "Traffic")
                                   Text(
-                                    '$populationLevel people present',
+                                    '$populationLevel visitors today',
                                     style: GoogleFonts.poppins(
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold,
@@ -421,7 +423,9 @@ class _FacilityDashScreenState extends State<FacilityDashScreen> {
                                           'Sanitation: ${sanitationStatuses[index]}',
                                           style: GoogleFonts.poppins(
                                             fontSize: 14,
-                                            color: const Color(0xFF6B7280),
+                                            color: sanitationStatuses[index] == 'Due for cleaning'
+                                                ? Colors.red
+                                                : const Color(0xFF6B7280),
                                           ),
                                         ),
                                         const SizedBox(height: 12),
@@ -429,6 +433,10 @@ class _FacilityDashScreenState extends State<FacilityDashScreen> {
                                           onPressed: () {
                                             setState(() {
                                               sanitationStatuses[index] = 'Clean';
+                                              // Update baseline for Restroom 1 when marked as clean
+                                              if (index == 0) {
+                                                restroom1BaselineUsage = restroom1Level;
+                                              }
                                             });
 
                                             ScaffoldMessenger.of(context).showSnackBar(
