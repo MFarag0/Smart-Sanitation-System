@@ -4,7 +4,7 @@
 #include <LoRa.h>
 #include <WiFi.h>
 #include <WebServer.h>
-#include <ArduinoJson.h>
+
 
 #define SS 18
 #define RST 14
@@ -40,6 +40,17 @@ const char* PASS = "12345678";
 
 WebServer server(80);
 
+void sendCorsHeaders() {
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  server.sendHeader("Access-Control-Allow-Headers", "*");
+  // Chrome Private Network Access (PNA) fix:
+  server.sendHeader("Access-Control-Allow-Private-Network", "true");
+}
+void handleSensorsOptions() {
+  sendCorsHeaders();
+  server.send(204); // No Content for preflight
+}
 void setup() 
   {
     Serial.begin(115200); 
@@ -54,8 +65,18 @@ void setup()
         while (1);
     }
     WiFi.mode(WIFI_AP);
-    WiFi.softAP(ssid, password);
-    server.on("/sensorsdata", HTTP_POST, handleToApp); //From esp to app
+    WiFi.softAP(SSID, PASS);
+    server.on("/sensorsdata", HTTP_GET, handleToApp);   
+    server.on("/sensorsdata", HTTP_OPTIONS, handleSensorsOptions);
+    server.onNotFound([]() {
+    if (server.method() == HTTP_OPTIONS) {
+      sendCorsHeaders();
+      server.send(204);
+      return;
+    }
+    sendCorsHeaders();
+    server.send(404, "text/plain", "Not found");
+  });//From esp to app
     server.begin();
     
 
@@ -119,9 +140,9 @@ String generateID() {
 
 void sendToESP32() {
     String packet;
-    String id = generateID();
-      packet = id+"|"+"Water"+"|"+resources["Water"]+"|"+"Population"+"|"+resources["Population"];
+      packet = String("FacilityA")+"|"+"Water"+"|"+resources["Water"]+"|"+"Population"+"|"+resources["Population"];
       Serial.println(packet);
+      Serial.println(WiFi.softAPIP());
       LoRa.beginPacket();
       LoRa.print(packet);
       LoRa.endPacket();
@@ -129,7 +150,7 @@ void sendToESP32() {
     
 }
 void handleToApp(){
-  msg = "Water"+"|"+resources["Water"]+"|"+"Population"+"|"+resources["Population"];
-  server.send(200, "text/plain", receivedPacket);
+  String msg = String("FacilityA")+"|"+String("Water")+"|"+resources["Water"]+"|"+"Population"+"|"+resources["Population"];
+  server.send(200, "text/plain", msg);
 }
 

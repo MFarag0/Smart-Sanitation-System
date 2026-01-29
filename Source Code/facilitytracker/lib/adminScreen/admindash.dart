@@ -1,8 +1,6 @@
 import 'package:facilitytracker/widgets/sidebar_admin.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:facilitytracker/mcu/api.dart';
-import 'dart:async';
 
 class AdminDashScreen extends StatefulWidget {
   const AdminDashScreen({super.key});
@@ -12,14 +10,9 @@ class AdminDashScreen extends StatefulWidget {
 }
 
 class _AdminDashScreenState extends State<AdminDashScreen> {
-  final Mcuapi _api = Mcuapi();
-  
   double facility1WaterPercentage = 0.97;
   double facility1SoapPercentage = 0.99;
   double facility1PeoplePercentage = 0.10;
-  
-  int _timerTicks = 0;
-  Timer? _simulationTimer;
   
   List<Map<String, dynamic>> staticFacilities = [
     {
@@ -44,37 +37,6 @@ class _AdminDashScreenState extends State<AdminDashScreen> {
       'soapPercentage': 0.15,
     },
   ];
-
-  @override
-  void initState() {
-    super.initState();
-    _startValueSimulation();
-  }
-  
-  void _startValueSimulation() {
-    _simulationTimer = Timer.periodic(Duration(seconds: 5), (timer) {
-      setState(() {
-        _timerTicks++;
-        
-        facility1PeoplePercentage = (facility1PeoplePercentage + 0.02).clamp(0.0, 1.0);
-        if (facility1PeoplePercentage > 0.98) facility1PeoplePercentage = 0.10;
-        
-        facility1WaterPercentage = (facility1WaterPercentage - 0.01).clamp(0.0, 1.0);
-        if (facility1WaterPercentage < 0.05) facility1WaterPercentage = 1.0;
-        
-        if (_timerTicks % 2 == 0) {
-          facility1SoapPercentage = (facility1SoapPercentage - 0.01).clamp(0.0, 1.0);
-          if (facility1SoapPercentage < 0.05) facility1SoapPercentage = 1.0;
-        }
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    _simulationTimer?.cancel();
-    super.dispose();
-  }
 
   List<Map<String, dynamic>> get allFacilities {
     return [
