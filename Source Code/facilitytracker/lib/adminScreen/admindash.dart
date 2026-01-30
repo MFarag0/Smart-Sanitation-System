@@ -270,7 +270,7 @@ class _AdminDashScreenState extends State<AdminDashScreen> {
                               color: getStatusColor(waterPercent),
                             ),
                             Text(
-                              '${(waterPercent * 100).toInt()}%',
+                              '${(waterPercent * 100).round()}%',
                               style: GoogleFonts.poppins(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
@@ -319,7 +319,7 @@ class _AdminDashScreenState extends State<AdminDashScreen> {
                               color: getStatusColor(soapPercent),
                             ),
                             Text(
-                              '${(soapPercent * 100).toInt()}%',
+                              '${(soapPercent * 100).round()}%',
                               style: GoogleFonts.poppins(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
