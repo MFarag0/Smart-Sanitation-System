@@ -23,6 +23,7 @@ class AdminRequestsScreen extends StatefulWidget {
   static int _unreadCount = 0;
   static String _lastMessage = '';
   static final List<Function()> _listeners = [];
+  static final List<Function()> _messageUpdateListeners = [];
 
   static int getUnreadCount() => _unreadCount;
   static void clearUnreadCount() {
@@ -36,12 +37,26 @@ class AdminRequestsScreen extends StatefulWidget {
     }
   }
   
+  static void _notifyMessageUpdateListeners() {
+    for (var listener in _messageUpdateListeners) {
+      listener();
+    }
+  }
+  
   static void addListener(Function() listener) {
     _listeners.add(listener);
   }
   
   static void removeListener(Function() listener) {
     _listeners.remove(listener);
+  }
+  
+  static void addMessageUpdateListener(Function() listener) {
+    _messageUpdateListeners.add(listener);
+  }
+  
+  static void removeMessageUpdateListener(Function() listener) {
+    _messageUpdateListeners.remove(listener);
   }
   
   static void startGlobalFetching() {
@@ -82,6 +97,7 @@ class AdminRequestsScreen extends StatefulWidget {
       
       _unreadCount++;
       _notifyListeners();
+      _notifyMessageUpdateListeners();
     } catch (e) {
       // Silently fail
     }
@@ -101,13 +117,31 @@ class _AdminRequestsScreenState extends State<AdminRequestsScreen> {
     super.initState();
     AdminRequestsScreen.clearUnreadCount();
     AdminRequestsScreen.startGlobalFetching();
+    AdminRequestsScreen.addMessageUpdateListener(_onMessageUpdate);
   }
 
   @override
   void dispose() {
+    AdminRequestsScreen.removeMessageUpdateListener(_onMessageUpdate);
     _scrollController.dispose();
     _messageController.dispose();
     super.dispose();
+  }
+
+  void _onMessageUpdate() {
+    if (mounted) {
+      setState(() {});
+      // Auto-scroll to bottom when new message arrives
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+    }
   }
 
   Future<void> _sendMessage() async {
@@ -260,14 +294,6 @@ class _AdminRequestsScreenState extends State<AdminRequestsScreen> {
           ),
         ),
         centerTitle: true,
-        leading: isPhone
-            ? IconButton(
-                icon: Icon(Icons.menu, color: Colors.white),
-                onPressed: () {
-                  Scaffold.of(context).openDrawer();
-                },
-              )
-            : null,
         toolbarHeight: 80,
         backgroundColor: primaryColor,
         elevation: 0,
@@ -289,11 +315,10 @@ class _AdminRequestsScreenState extends State<AdminRequestsScreen> {
             ),
         ],
       ),
-      drawer: isPhone ? Drawer(child: SidebarAdmin()) : null,
       body: SafeArea(
         child: Row(
           children: [
-            if (!isPhone) SidebarAdmin(),
+            SidebarAdmin(),
             
             // Facility list sidebar
             if (!isPhone) Container(
@@ -464,77 +489,58 @@ class _AdminRequestsScreenState extends State<AdminRequestsScreen> {
                                 
                                 return Padding(
                                   padding: EdgeInsets.only(bottom: 12),
-                                  child: Row(
-                                    mainAxisAlignment: isFromFacility ? MainAxisAlignment.start : MainAxisAlignment.end,
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                  child: Column(
+                                    crossAxisAlignment: isFromFacility ? CrossAxisAlignment.start : CrossAxisAlignment.end,
                                     children: [
-                                      if (isFromFacility) Container(
-                                        width: 40,
-                                        height: 40,
-                                        decoration: BoxDecoration(
-                                          color: primaryColor.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(20),
-                                        ),
-                                        child: Icon(
-                                          Icons.business,
-                                          color: primaryColor,
-                                          size: 20,
-                                        ),
-                                      ),
-                                      if (isFromFacility) SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: isFromFacility ? CrossAxisAlignment.start : CrossAxisAlignment.end,
-                                          children: [
-                                            Row(
-                                              mainAxisAlignment: isFromFacility ? MainAxisAlignment.start : MainAxisAlignment.end,
-                                              children: [
-                                                Text(
-                                                  isFromFacility ? _selectedFacility : 'Admin',
-                                                  style: GoogleFonts.poppins(
-                                                    fontSize: 14,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: Color(0xFF1E293B),
-                                                  ),
-                                                ),
-                                                SizedBox(width: 8),
-                                                Text(
-                                                  message['time'],
-                                                  style: GoogleFonts.poppins(
-                                                    fontSize: 12,
-                                                    color: Color(0xFF94A3B8),
-                                                  ),
-                                                ),
-                                              ],
+                                      Row(
+                                        mainAxisAlignment: isFromFacility ? MainAxisAlignment.start : MainAxisAlignment.end,
+                                        children: [
+                                          Text(
+                                            isFromFacility ? _selectedFacility : 'Admin',
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                              color: Color(0xFF1E293B),
                                             ),
-                                            SizedBox(height: 6),
-                                            Container(
-                                              padding: EdgeInsets.all(12),
-                                              decoration: BoxDecoration(
-                                                color: isFromFacility ? Colors.white : Color.fromARGB(255, 237, 189, 126).withOpacity(0.1),
-                                                borderRadius: BorderRadius.circular(12),
-                                                border: Border.all(
-                                                  color: Color(0xFFE2E8F0),
-                                                  width: 1,
-                                                ),
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: primaryColor.withOpacity(0.05),
-                                                    blurRadius: 4,
-                                                    offset: Offset(0, 2),
-                                                  ),
-                                                ],
-                                              ),
-                                              child: Text(
-                                                message['message'],
-                                                style: GoogleFonts.poppins(
-                                                  fontSize: 14,
-                                                  color: Color(0xFF1E293B),
-                                                  height: 1.5,
-                                                ),
-                                              ),
+                                          ),
+                                          SizedBox(width: 8),
+                                          Text(
+                                            message['time'],
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 12,
+                                              color: Color(0xFF94A3B8),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      SizedBox(height: 6),
+                                      Container(
+                                        constraints: BoxConstraints(
+                                          maxWidth: MediaQuery.of(context).size.width * 0.6,
+                                        ),
+                                        padding: EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: isFromFacility ? Colors.white : Color.fromARGB(255, 237, 189, 126).withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(
+                                            color: Color(0xFFE2E8F0),
+                                            width: 1,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: primaryColor.withOpacity(0.05),
+                                              blurRadius: 4,
+                                              offset: Offset(0, 2),
                                             ),
                                           ],
+                                        ),
+                                        child: Text(
+                                          message['message'],
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 14,
+                                            color: Color(0xFF1E293B),
+                                            height: 1.5,
+                                          ),
                                         ),
                                       ),
                                     ],

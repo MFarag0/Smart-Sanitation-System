@@ -12,6 +12,7 @@ class RequestsScreen extends StatefulWidget {
   static int _unreadCount = 0;
   static String _lastMessage = '';
   static final List<Function()> _listeners = [];
+  static final List<Function()> _messageUpdateListeners = [];
 
   static int getUnreadCount() => _unreadCount;
   static void clearUnreadCount() {
@@ -25,12 +26,26 @@ class RequestsScreen extends StatefulWidget {
     }
   }
   
+  static void _notifyMessageUpdateListeners() {
+    for (var listener in _messageUpdateListeners) {
+      listener();
+    }
+  }
+  
   static void addListener(Function() listener) {
     _listeners.add(listener);
   }
   
   static void removeListener(Function() listener) {
     _listeners.remove(listener);
+  }
+  
+  static void addMessageUpdateListener(Function() listener) {
+    _messageUpdateListeners.add(listener);
+  }
+  
+  static void removeMessageUpdateListener(Function() listener) {
+    _messageUpdateListeners.remove(listener);
   }
   
   static void startGlobalFetching() {
@@ -71,6 +86,7 @@ class RequestsScreen extends StatefulWidget {
       
       _unreadCount++;
       _notifyListeners();
+      _notifyMessageUpdateListeners();
     } catch (e) {
       // Silently fail
     }
@@ -93,14 +109,14 @@ class RequestsScreen extends StatefulWidget {
       'isAutomated': true,
     });
     
-    // Send to server
+    
     try {
       await http.post(
         Uri.parse("http://192.168.4.1/sendtoadmin"),
         body: messageText,
       ).timeout(const Duration(seconds: 3));
     } catch (e) {
-      // Silently fail
+      throw Exception('Failed to send automated message');
     }
   }
 
@@ -117,6 +133,7 @@ class _RequestsScreenState extends State<RequestsScreen> {
     super.initState();
     RequestsScreen.clearUnreadCount();
     RequestsScreen.startGlobalFetching();
+    RequestsScreen.addMessageUpdateListener(_onMessageUpdate);
     
     // Scroll to bottom when new messages arrive
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -128,9 +145,25 @@ class _RequestsScreenState extends State<RequestsScreen> {
 
   @override
   void dispose() {
+    RequestsScreen.removeMessageUpdateListener(_onMessageUpdate);
     _scrollController.dispose();
     _messageController.dispose();
     super.dispose();
+  }
+
+  void _onMessageUpdate() {
+    if (mounted) {
+      setState(() {});
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+    }
   }
 
   Future<void> _sendMessage() async {
@@ -166,14 +199,14 @@ class _RequestsScreenState extends State<RequestsScreen> {
       }
     });
     
-    // Send to server
+    
     try {
       await http.post(
         Uri.parse("http://192.168.4.1/sendtoadmin"),
         body: messageText,
       ).timeout(const Duration(seconds: 3));
     } catch (e) {
-      // Silently fail
+      throw Exception('Failed to send message');
     }
   }
 
@@ -197,14 +230,6 @@ class _RequestsScreenState extends State<RequestsScreen> {
           ),
         ),
         centerTitle: true,
-        leading: isPhone
-            ? IconButton(
-                icon: Icon(Icons.menu, color: Colors.white),
-                onPressed: () {
-                  Scaffold.of(context).openDrawer();
-                },
-              )
-            : null,
         actions: [
           if (RequestsScreen._messages.isNotEmpty)
             IconButton(
@@ -250,15 +275,13 @@ class _RequestsScreenState extends State<RequestsScreen> {
           ),
         ),
       ),
-      drawer: isPhone ? Drawer(child: Sidebar()) : null,
       body: SafeArea(
         child: Row(
           children: [
-            if (!isPhone) Sidebar(),
+            Sidebar(),
             Expanded(
               child: Column(
                 children: [
-                  // Chat messages area
                   Expanded(
                     child: RequestsScreen._messages.isEmpty
                         ? Center(
@@ -290,102 +313,81 @@ class _RequestsScreenState extends State<RequestsScreen> {
                               ],
                             ),
                           )
-                        : ListView.builder(
-                            controller: _scrollController,
-                            padding: EdgeInsets.all(16),
-                            itemCount: RequestsScreen._messages.length,
-                            itemBuilder: (context, index) {
-                              final message = RequestsScreen._messages[index];
-                              final isFromAdmin = message['isFromAdmin'] == true;
-                              final isAutomated = message['isAutomated'] == true;
-                              
-                              return Align(
-                                alignment: isFromAdmin 
-                                    ? Alignment.centerLeft 
-                                    : Alignment.centerRight,
-                                child: Container(
-                                  constraints: BoxConstraints(
-                                    maxWidth: screenWidth * 0.6,
-                                  ),
-                                  margin: EdgeInsets.only(bottom: 12),
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 12,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: isFromAdmin
-                                        ? Color(0xFFF1F5F9)
-                                        : primaryColor,
-                                    borderRadius: BorderRadius.circular(16),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.05),
-                                        blurRadius: 4,
-                                        offset: Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
+                        : Container(
+                            color: Color(0xFFECECEC),
+                            child: ListView.builder(
+                              controller: _scrollController,
+                              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                              itemCount: RequestsScreen._messages.length,
+                              itemBuilder: (context, index) {
+                                final message = RequestsScreen._messages[index];
+                                final isFromAdmin = message['isFromAdmin'] == true;
+                                final isAutomated = message['isAutomated'] == true;
+                                
+                                return Padding(
+                                  padding: EdgeInsets.only(bottom: 16),
                                   child: Column(
-                                    crossAxisAlignment: isFromAdmin
-                                        ? CrossAxisAlignment.start
-                                        : CrossAxisAlignment.end,
+                                    crossAxisAlignment: isFromAdmin ? CrossAxisAlignment.start : CrossAxisAlignment.end,
                                     children: [
-                                      Text(
-                                        isFromAdmin ? 'Admin' : (isAutomated ? 'You (Automated Message)' : 'You'),
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                          color: isFromAdmin
-                                              ? Color(0xFF64748B)
-                                              : Colors.white.withOpacity(0.9),
-                                        ),
+                                      Row(
+                                        mainAxisAlignment: isFromAdmin ? MainAxisAlignment.start : MainAxisAlignment.end,
+                                        children: [
+                                          Text(
+                                            isFromAdmin ? 'Admin' : (isAutomated ? 'You (Automated)' : 'You'),
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
+                                              color: Color(0xFF333333),
+                                            ),
+                                          ),
+                                          SizedBox(width: 8),
+                                          Text(
+                                            message['time'],
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 12,
+                                              color: Color(0xFF999999),
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      SizedBox(height: 4),
-                                      Text(
-                                        message['message'],
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 14,
-                                          color: isFromAdmin
-                                              ? Color(0xFF1E293B)
-                                              : Colors.white,
+                                      SizedBox(height: 8),
+                                      Container(
+                                        constraints: BoxConstraints(
+                                          maxWidth: MediaQuery.of(context).size.width * 0.65,
                                         ),
-                                      ),
-                                      SizedBox(height: 4),
-                                      Text(
-                                        message['time'],
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 10,
-                                          color: isFromAdmin
-                                              ? Color(0xFF94A3B8)
-                                              : Colors.white.withOpacity(0.7),
+                                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                        decoration: BoxDecoration(
+                                          color: isFromAdmin ? Colors.white : primaryColor.withOpacity(0.15),
+                                          borderRadius: BorderRadius.circular(16),
+                                        ),
+                                        child: Text(
+                                          message['message'],
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 14,
+                                            color: Color(0xFF333333),
+                                            height: 1.4,
+                                          ),
                                         ),
                                       ),
                                     ],
                                   ),
-                                ),
-                              );
-                            },
+                                );
+                              },
+                            ),
                           ),
                   ),
                   
-                  // Message input area
+
                   Container(
-                    padding: EdgeInsets.all(16),
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       border: Border(
                         top: BorderSide(
-                          color: Color(0xFFE2E8F0),
+                          color: Color(0xFFE0E0E0),
                           width: 1,
                         ),
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 10,
-                          offset: Offset(0, -2),
-                        ),
-                      ],
                     ),
                     child: Row(
                       children: [
@@ -393,67 +395,58 @@ class _RequestsScreenState extends State<RequestsScreen> {
                           child: TextField(
                             controller: _messageController,
                             decoration: InputDecoration(
-                              hintText: 'Type your message...',
+                              hintText: 'Type a message...',
                               hintStyle: GoogleFonts.poppins(
-                                color: Color(0xFF94A3B8),
+                                color: Color(0xFFAAAAAA),
+                                fontSize: 14,
                               ),
                               filled: true,
-                              fillColor: Color(0xFFF8FAFC),
+                              fillColor: Color(0xFFF5F5F5),
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(
-                                  color: Color(0xFFE2E8F0),
-                                ),
+                                borderRadius: BorderRadius.circular(24),
+                                borderSide: BorderSide.none,
                               ),
                               enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(
-                                  color: Color(0xFFE2E8F0),
-                                ),
+                                borderRadius: BorderRadius.circular(24),
+                                borderSide: BorderSide.none,
                               ),
                               focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(
-                                  color: primaryColor,
-                                  width: 2,
-                                ),
+                                borderRadius: BorderRadius.circular(24),
+                                borderSide: BorderSide.none,
                               ),
                               contentPadding: EdgeInsets.symmetric(
-                                horizontal: 16,
+                                horizontal: 20,
                                 vertical: 12,
                               ),
                             ),
-                            onSubmitted: (_) => _sendMessage(),
-                            maxLines: null,
+                            onSubmitted: (_) {
+                              _sendMessage();
+                            },
+                            textInputAction: TextInputAction.send,
+                            maxLines: 1,
                             textCapitalization: TextCapitalization.sentences,
                           ),
                         ),
                         SizedBox(width: 12),
                         Container(
+                          width: 48,
+                          height: 48,
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: [primaryColor, Color.fromARGB(255, 70, 229, 184)],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: primaryColor.withOpacity(0.3),
-                                blurRadius: 8,
-                                offset: Offset(0, 2),
-                              ),
-                            ],
+                            shape: BoxShape.circle,
                           ),
                           child: Material(
                             color: Colors.transparent,
                             child: InkWell(
                               onTap: _sendMessage,
-                              borderRadius: BorderRadius.circular(12),
-                              child: Padding(
-                                padding: EdgeInsets.all(12),
+                              customBorder: CircleBorder(),
+                              child: Center(
                                 child: Icon(
-                                  Icons.send_rounded,
+                                  Icons.arrow_forward,
                                   color: Colors.white,
                                   size: 24,
                                 ),

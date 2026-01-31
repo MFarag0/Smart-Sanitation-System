@@ -12,7 +12,6 @@ class AdminDashScreen extends StatefulWidget {
 }
 
 class _AdminDashScreenState extends State<AdminDashScreen> {
-  // Real data for Zone 1 - Facility A
   int facilityAWater = 0;
   int facilityASoap = 0;
   int facilityATraffic = 0;
@@ -77,8 +76,8 @@ class _AdminDashScreenState extends State<AdminDashScreen> {
         'water': facilityAWater,
         'soap': facilityASoap,
         'traffic': facilityATraffic,
-        'waterPercent': (facilityAWater / waterCapacity).clamp(0.0, 1.0),
-        'soapPercent': (facilityASoap / soapCapacity).clamp(0.0, 1.0),
+        'waterPercent': ((waterCapacity - facilityAWater) / waterCapacity).clamp(0.0, 1.0),
+        'soapPercent': ((soapCapacity - facilityASoap) / soapCapacity).clamp(0.0, 1.0),
         'trafficPercent': (facilityATraffic / maxTraffic).clamp(0.0, 1.0),
       };
     }
@@ -102,8 +101,8 @@ class _AdminDashScreenState extends State<AdminDashScreen> {
       'water': data['water'],
       'soap': data['soap'],
       'traffic': data['traffic'],
-      'waterPercent': (data['water']! / waterCapacity).clamp(0.0, 1.0),
-      'soapPercent': (data['soap']! / soapCapacity).clamp(0.0, 1.0),
+      'waterPercent': ((waterCapacity - data['water']!) / waterCapacity).clamp(0.0, 1.0),
+      'soapPercent': ((soapCapacity - data['soap']!) / soapCapacity).clamp(0.0, 1.0),
       'trafficPercent': (data['traffic']! / maxTraffic).clamp(0.0, 1.0),
     };
   }
@@ -395,14 +394,6 @@ class _AdminDashScreenState extends State<AdminDashScreen> {
           ),
         ),
         centerTitle: true,
-        leading: isPhone
-            ? IconButton(
-                icon: Icon(Icons.menu, color: Colors.white),
-                onPressed: () {
-                  Scaffold.of(context).openDrawer();
-                },
-              )
-            : null,
         toolbarHeight: 80,
         backgroundColor: primaryColor,
         elevation: 0,
@@ -416,11 +407,10 @@ class _AdminDashScreenState extends State<AdminDashScreen> {
           ),
         ),
       ),
-      drawer: isPhone ? Drawer(child: SidebarAdmin()) : null,
       body: SafeArea(
         child: Row(
           children: [
-            if (!isPhone) SidebarAdmin(),
+            SidebarAdmin(),
             Expanded(
               child: SingleChildScrollView(
                 child: Padding(

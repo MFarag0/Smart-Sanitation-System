@@ -23,7 +23,7 @@ class _FacilityDashScreenState extends State<FacilityDashScreen> {
   // Capacities
   int maxPopulation = 200;  // Assuming max population 200
   int soapCapacity = 200;   // Assuming max height of the soap bottle is 200units
-  int waterCapacity = 200;  // Assuming max height of the water tank is 200units
+  int waterCapacity = 200;  // Assuming max height of the water tank is 50units
 
   
   String rawMessage = "Connecting...";
@@ -165,7 +165,6 @@ class _FacilityDashScreenState extends State<FacilityDashScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      drawer: isPhone ? Drawer(child: Sidebar()) : null,
       appBar: AppBar(
         title: Text(
           "Facility Dashboard",
@@ -192,7 +191,7 @@ class _FacilityDashScreenState extends State<FacilityDashScreen> {
       body: SafeArea(
         child: Row(
           children: [
-            if (!isPhone) Sidebar(),
+            Sidebar(),
             Expanded(
               child: SingleChildScrollView(
                 child: Column(
@@ -245,7 +244,11 @@ class _FacilityDashScreenState extends State<FacilityDashScreen> {
                           final value = items[index]['value'] as int;
                           final capacity = items[index]['capacity'] as int;
 
-                          final ratio = _ratio(value, capacity);
+                          
+                          final effectiveValue = (title == 'Water Supply' || title == 'Soap Supply') 
+                              ? (capacity - value) 
+                              : value;
+                          final ratio = _ratio(effectiveValue, capacity);
                           final percent = (ratio * 100).toStringAsFixed(0);
 
                           final color = _statusColor(
@@ -371,13 +374,38 @@ class _FacilityDashScreenState extends State<FacilityDashScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Restrooms Status',
-                            style: GoogleFonts.poppins(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF374151),
-                            ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Restrooms Status',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF374151),
+                                ),
+                              ),
+                              Row(
+                                children: [
+                                  Text(
+                                    'Pit Latrine Level: ',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: const Color(0xFF374151),
+                                    ),
+                                  ),
+                                  Text(
+                                    'LOW',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: primaryColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 20),
                           GridView.builder(

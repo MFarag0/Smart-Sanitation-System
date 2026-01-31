@@ -73,6 +73,7 @@ void loop() {
       String payload = receivedPacket.substring(sepIndex + 1);
       if (type=="FCLTYMSG"){
         receivedMessageFromFacility=payload;
+        Serial.println(receivedMessageFromFacility);
       }
   }
 

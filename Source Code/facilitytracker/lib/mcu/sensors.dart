@@ -99,14 +99,6 @@ class _SensorsDataScreenState extends State<SensorsDataScreen> {
               ),
             ),
             centerTitle: true,
-            leading: isPhone
-                ? IconButton(
-                    icon: Icon(Icons.menu, color: Colors.white),
-                    onPressed: () {
-                      Scaffold.of(context).openDrawer();
-                    },
-                  )
-                : null,
             toolbarHeight: 80,
             backgroundColor: primaryColor,
             elevation: 0,
@@ -120,11 +112,10 @@ class _SensorsDataScreenState extends State<SensorsDataScreen> {
               ),
             ),
           ),
-          drawer: isPhone ? Drawer(child: Sidebar()) : null,
           body: SafeArea(
             child: Row(
               children: [
-                if (!isPhone) Sidebar(),
+                Sidebar(),
                 Expanded(
                   child: SingleChildScrollView(
                     child: Padding(
