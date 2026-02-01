@@ -5,6 +5,8 @@ Problem Statement: HPS#1 - Mapping Sanitation and Hygiene Services in Displaced 
 
 Solution: WASH-Command Snap-Kit
 
+MVP Video: https://www.youtube.com/watch?v=_-cHbULspgI
+
 WASH-Command Snap-Kit is an offline-first system that turns sanitation signals into a prioritized workflow. Instead of only displaying readings, it ranks urgency and supports task assignment across facilities.
 In many displaced communities, shared toilets and handwashing points fail without warning: water runs low, soap runs out, and latrine pits approach overflow. Families lose basic hygiene access, and staff often discover issues late through complaints or manual rounds. This is a public health risk. WHO links cholera transmission to unsafe water, inadequate sanitation, and insufficient hygiene, and notes that contaminated water and poor sanitation are linked to diseases such as cholera and diarrhoea.
 Hence, our solution creates a proactive service loop that prevents breakdowns. Restock soap and refill water before facilities become unusable and prioritize cleaning using measured usage so the busiest blocks are serviced first. Evidence from systematic reviews links handwashing with soap to lower diarrhoeal disease risk, making reliable soap availability an important operational target.
