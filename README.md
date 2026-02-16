@@ -1,5 +1,6 @@
 # Lifelines_Hackathon_CMUQ
 Team MindForge - Hackathon '26
+
 Title: Smart Sanitation System
 
 Problem Statement: HPS#1 - Mapping Sanitation and Hygiene Services in Displaced Communities
