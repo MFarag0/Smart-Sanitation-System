@@ -1,4 +1,4 @@
-#Smart Sanitation System
+# Smart Sanitation System
 
 MVP Video: https://www.youtube.com/watch?v=_-cHbULspgI
 
